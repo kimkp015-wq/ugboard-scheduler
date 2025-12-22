@@ -2,8 +2,7 @@ name = "ugboard-scheduler"
 main = "src/index.js"
 compatibility_date = "2025-12-22"
 
-# Optional but safe
-workers_dev = true
-
-[observability]
-enabled = true
+[triggers]
+crons = [
+  "0 6 * * MON"
+]

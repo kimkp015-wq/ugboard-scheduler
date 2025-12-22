@@ -1,48 +1,42 @@
 export default {
-  /**
-   * Runs automatically via Cloudflare Cron
-   */
-  async scheduled(event, env, ctx) {
-    ctx.waitUntil(runScheduler(env, "cron"));
-  },
-
-  /**
-   * Optional manual trigger (protected)
-   * GET /run
-   */
   async fetch(request, env) {
-    const url = new URL(request.url);
+    try {
+      // Only allow GET (simple safety)
+      if (request.method !== "GET") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
 
-    if (url.pathname !== "/run") {
-      return new Response("Not found", { status: 404 });
+      // Build secure request to Railway engine
+      const response = await fetch(
+        `${env.ENGINE_BASE_URL}/admin/scheduler/run`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-ENGINE-TOKEN": env.ENGINE_SECRET_TOKEN,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        return new Response(
+          JSON.stringify({ status: "engine_error" }),
+          { status: 502 }
+        );
+      }
+
+      const data = await response.json();
+
+      return new Response(
+        JSON.stringify({ status: "ok", data }),
+        { headers: { "Content-Type": "application/json" } }
+      );
+
+    } catch (err) {
+      return new Response(
+        JSON.stringify({ status: "worker_error" }),
+        { status: 500 }
+      );
     }
-
-    const token = request.headers.get("Authorization");
-    if (token !== `Bearer ${env.SCHEDULER_TOKEN}`) {
-      return new Response("Unauthorized", { status: 401 });
-    }
-
-    await runScheduler(env, "manual");
-    return new Response("Scheduler executed");
-  }
+  },
 };
-
-async function runScheduler(env, source) {
-  const ENGINE_URL = "https://YOUR-ENGINE-URL/admin/regions/publish-weekly";
-
-  const res = await fetch(ENGINE_URL, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${env.ENGINE_SECRET_TOKEN}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      source,
-      triggered_at: new Date().toISOString()
-    })
-  });
-
-  if (!res.ok) {
-    console.error("Scheduler failed", await res.text());
-  }
-}

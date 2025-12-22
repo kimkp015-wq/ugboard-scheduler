@@ -1,65 +1,39 @@
-/**
- * UG Board Scheduler Worker
- * Runs weekly automation jobs (EAT timezone)
- */
-
 export default {
+  // HTTP entry (health + manual trigger)
   async fetch(request, env, ctx) {
-    const url = new URL(request.url)
+    const url = new URL(request.url);
 
-    // Health check
     if (url.pathname === "/") {
-      return new Response(
-        JSON.stringify({
-          status: "ok",
-          service: "ugboard-scheduler",
-          timestamp: new Date().toISOString()
-        }),
-        { headers: { "Content-Type": "application/json" } }
-      )
+      return new Response(JSON.stringify({
+        status: "ok",
+        service: "ugboard-scheduler",
+        time: new Date().toISOString()
+      }), { headers: { "Content-Type": "application/json" } });
     }
 
-    // Manual trigger (safe for testing)
     if (url.pathname === "/run") {
-      return await runScheduler()
+      await runScheduler("manual");
+      return new Response(JSON.stringify({
+        status: "success",
+        trigger: "manual"
+      }), { headers: { "Content-Type": "application/json" } });
     }
 
-    return new Response("Not found", { status: 404 })
+    return new Response("Not Found", { status: 404 });
   },
 
-  // Cloudflare Cron trigger
+  // CRON entry
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(runScheduler())
+    ctx.waitUntil(runScheduler("cron"));
   }
-}
+};
 
-/**
- * Core scheduler logic
- * Billboard-style weekly window
- * Uses EAT timezone logic (handled by cron schedule)
- */
-async function runScheduler() {
-  try {
-    // TODO (next step):
-    // 1. Call Railway admin endpoint
-    // 2. Publish regions (Eastern, Northern, Western)
-    // 3. Lock snapshots
+// Core scheduler logic (single source of truth)
+async function runScheduler(trigger) {
+  console.log("UG Board scheduler running:", trigger);
 
-    return new Response(
-      JSON.stringify({
-        status: "success",
-        message: "Scheduler executed successfully",
-        time: new Date().toISOString()
-      }),
-      { headers: { "Content-Type": "application/json" } }
-    )
-  } catch (err) {
-    return new Response(
-      JSON.stringify({
-        status: "error",
-        error: err.message
-      }),
-      { status: 500 }
-    )
-  }
+  // 🚧 placeholder (next step we connect Railway / engine)
+  // fetch("https://your-railway-service/run-weekly", { ... })
+
+  return true;
 }

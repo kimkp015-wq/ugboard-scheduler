@@ -30,3 +30,8 @@ export default {
     }
   }
 };
+export default {
+  fetch() {
+    return new Response("UG Board Scheduler is live");
+  }
+};

@@ -1,8 +1,2 @@
-name = "ugboard-scheduler"
-main = "src/index.js"
-compatibility_date = "2025-12-22"
-
 [triggers]
-crons = [
-  "0 6 * * MON"
-]
+crons = ["5 21 * * 4"]

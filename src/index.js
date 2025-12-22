@@ -1,45 +1,47 @@
 export default {
   async fetch(request, env, ctx) {
-    try {
-      const url = new URL(request.url);
+    return new Response(
+      JSON.stringify({ status: "ok", service: "ugboard-scheduler" }),
+      { headers: { "Content-Type": "application/json" } }
+    );
+  },
 
-      // Health check
-      if (url.pathname === "/health") {
-        return new Response(
-          JSON.stringify({
-            status: "ok",
-            service: "ugboard-scheduler",
-            has_engine_url: !!env.ENGINE_BASE_URL
-          }),
-          { headers: { "content-type": "application/json" } }
+  async scheduled(event, env, ctx) {
+    const regions = ["Eastern", "Northern", "Western"];
+    const results = [];
+
+    for (const region of regions) {
+      try {
+        const res = await fetch(
+          `${env.ENGINE_BASE_URL}/admin/regions/${region}/publish`,
+          {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${env.ENGINE_SECRET_TOKEN}`,
+              "Content-Type": "application/json"
+            }
+          }
         );
-      }
 
-      // Root welcome
-      if (url.pathname === "/") {
-        return new Response(
-          JSON.stringify({
-            status: "ok",
-            message: "UG Board Scheduler Worker alive"
-          }),
-          { headers: { "content-type": "application/json" } }
-        );
-      }
+        const text = await res.text();
 
-      // Unknown route
-      return new Response(
-        JSON.stringify({ status: "not_found" }),
-        { status: 404, headers: { "content-type": "application/json" } }
-      );
+        results.push({
+          region,
+          status: res.status,
+          response: text
+        });
 
-    } catch (err) {
-      return new Response(
-        JSON.stringify({
+      } catch (err) {
+        // NEVER crash the worker
+        results.push({
+          region,
           status: "error",
-          error: "internal_worker_error"
-        }),
-        { status: 500, headers: { "content-type": "application/json" } }
-      );
+          error: err.message
+        });
+      }
     }
+
+    // Log for Cloudflare observability
+    console.log("Weekly region publish results:", results);
   }
 };
